@@ -12,26 +12,47 @@ mkdir -v src/bin/day$1 || exit_me
 cat -v <<EOF > src/bin/day$1/main.rs
 use std::fs;
 
-fn main() {
-    println!("AOC 2024 Day $1");
-
-    let EXAMPLE = true;
-
-    let contents = {
-        if EXAMPLE {
-            example()
-        } else {
-            fs::read_to_string("src/bin/day$1/input.txt")
-                .expect("Failed to read input")
-        }
-    };
-}
-
 fn example() -> String {
     return "
 
 ".trim().to_owned();
 }
+
+const PART2: bool = false;
+
+fn main() {
+    println!("AOC 2024 Day $1");
+
+    let contents = &fs::read_to_string("src/bin/day$1/input.txt")
+        .expect("Failed to read input");
+
+    println!("Part 1: {}", part1(contents));
+
+    if PART2 {
+        println!("Part 2: {}", part2(contents));
+    }
+}
+
+#[test]
+fn test_p1() {
+    assert_eq!(part1(&example()), 42);
+}
+
+#[test]
+fn test_p2() {
+    if PART2 {
+        assert_eq!(part2(&example()), 42);
+    }
+}
+
+fn part1(data: &String) -> usize {
+    todo!();
+}
+
+fn part2(data: &String) -> usize {
+    todo!();
+}
+
 EOF
 
 mv -v ~/Downloads/input src/bin/day$1/input.txt
