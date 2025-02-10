@@ -24,11 +24,27 @@ fn main() {
     ids.0.sort();
     ids.1.sort();
 
-    let total: usize = ids.0.into_iter().zip(ids.1.into_iter())
-        .map(|(a, b)| a.abs_diff(b))
+    let total: usize = ids.0.iter().zip(ids.1.iter())
+        .map(|(a, b)| a.abs_diff(*b))
         .sum();
 
     println!("Part 1: {}", total);
+
+    let max = ids.1[ids.1.len() - 1] + 1;
+
+    let mut right_counts: Vec<usize> = vec![0; max];
+    for id in ids.1.iter() {
+        right_counts[*id] += 1;
+    }
+
+    let mut part2: usize = 0;
+    for id in ids.0.iter() {
+        if *id <= max {
+            part2 += *id * right_counts[*id];
+        }
+    }
+
+    println!("Part 2: {}", part2);
 }
 
 fn example() -> String {
