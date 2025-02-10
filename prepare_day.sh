@@ -15,7 +15,22 @@ use std::fs;
 fn main() {
     println!("AOC 2024 Day $1");
 
-    let contents = fs::read_to_string("src/bin/day$1/input.txt").expect("Failed to read input");
+    let EXAMPLE = true;
+
+    let contents = {
+        if EXAMPLE {
+            example()
+        } else {
+            fs::read_to_string("src/bin/day$1/input.txt")
+                .expect("Failed to read input")
+        }
+    };
+}
+
+fn example() -> String {
+    return "
+
+".trim().to_owned();
 }
 EOF
 
