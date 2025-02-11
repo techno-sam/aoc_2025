@@ -24,8 +24,9 @@ const PART2: bool = false;
 fn main() {
     println!("AOC 2024 Day $1");
 
-    let contents = &fs::read_to_string("src/bin/day$1/input.txt")
+    let contents = fs::read_to_string("src/bin/day$1/input.txt")
         .expect("Failed to read input");
+    let contents = contents.trim();
 
     println!("Part 1: {}", part1(contents));
 
