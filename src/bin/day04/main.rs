@@ -14,23 +14,7 @@ XMAS.S
 }
 
 #[allow(dead_code)]
-fn example1() -> String {
-    return "
-....XXMAS.
-.SAMXMS...
-...S..A...
-..A.A.MS.X
-XMASAMX.MM
-X.....XA.A
-S.S.S.S.SS
-.A.A.A.A.A
-..M.M.M.MM
-.X.X.XMASX
-".trim().to_owned();
-}
-
-#[allow(dead_code)]
-fn example2() -> String {
+fn example() -> String {
     return "
 MMMSXXMASM
 MSAMXMSMSA
@@ -45,7 +29,7 @@ MXMXAXMASX
 ".trim().to_owned();
 }
 
-const PART2: bool = false;
+const PART2: bool = true;
 
 fn main() {
     println!("AOC 2024 Day 04");
@@ -67,19 +51,14 @@ fn test_p1_0() {
 }
 
 #[test]
-fn test_p1_1() {
-    assert_eq!(part1(&example1()), 18);
-}
-
-#[test]
-fn test_p1_2() {
-    assert_eq!(part1(&example2()), 18);
+fn test_p1() {
+    assert_eq!(part1(&example()), 18);
 }
 
 #[test]
 fn test_p2() {
     if PART2 {
-        assert_eq!(part2(&example2()), 42);
+        assert_eq!(part2(&example()), 9);
     }
 }
 
@@ -155,6 +134,36 @@ fn part1(data: &str) -> usize {
 }
 
 fn part2(data: &str) -> usize {
-    todo!();
+    let grid: Vec<Vec<Chars>> = data.split("\n")
+        .map(|chars| chars.chars()
+            .map(|c| Chars::decode(c))
+            .collect()
+        )
+        .collect();
+
+    let row_count = grid.len();
+    let column_count = grid[0].len();
+
+    let mut count = 0;
+
+    for r in 1..(row_count - 1) {
+        for c in 1..(column_count - 1) {
+            if grid[r][c] == Chars::A {
+                let a1 = &grid[r-1][c-1];
+                let a2 = &grid[r+1][c+1];
+
+                let b1 = &grid[r-1][c+1];
+                let b2 = &grid[r+1][c-1];
+
+                if (*a1 == Chars::M && *a2 == Chars::S) || (*a1 == Chars::S && *a2 == Chars::M) {
+                    if (*b1 == Chars::M && *b2 == Chars::S) || (*b1 == Chars::S && *b2 == Chars::M) {
+                        count += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    return count;
 }
 
