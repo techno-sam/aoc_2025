@@ -34,7 +34,7 @@ fn example() -> String {
 ".trim().to_owned();
 }
 
-const PART2: bool = false;
+const PART2: bool = true;
 
 fn main() {
     println!("AOC 2024 Day 05");
@@ -58,7 +58,7 @@ fn test_p1() {
 #[test]
 fn test_p2() {
     if PART2 {
-        assert_eq!(part2(&example()), 42);
+        assert_eq!(part2(&example()), 123);
     }
 }
 
@@ -78,6 +78,7 @@ impl Ordering {
     }
 }
 
+#[derive(Clone)]
 struct Update(Vec<usize>);
 
 impl Update {
@@ -103,6 +104,35 @@ impl Update {
     fn middle_num(&self) -> usize {
         let idx = self.0.len() / 2;
         return self.0[idx];
+    }
+
+    fn fix_order(&mut self, order: &Ordering) {
+        if self.is_ordered(order) {
+            return;
+        }
+
+        let mut idxa = None;
+        let mut idxb = None;
+
+        for i in 0..self.0.len() {
+            if let None = idxa {
+                if self.0[i] == order.a {
+                    idxa = Some(i);
+                }
+            }
+
+            if let None = idxb {
+                if self.0[i] == order.b {
+                    idxb = Some(i);
+                }
+            }
+        }
+
+        let mindex = idxa.unwrap().min(idxb.unwrap());
+        let maxdex = idxa.unwrap().max(idxb.unwrap());
+
+        self.0[mindex] = order.a;
+        self.0[maxdex] = order.b;
     }
 }
 
@@ -130,6 +160,34 @@ fn part1(data: &str) -> usize {
 }
 
 fn part2(data: &str) -> usize {
-    todo!();
+    let (orders, updates) = data.split_once("\n\n").unwrap();
+
+    let orders: Vec<Ordering> = orders.trim()
+        .split("\n")
+        .map(|s| Ordering::parse(s))
+        .collect();
+
+    let mut updates: Vec<Update> = updates.trim()
+        .split("\n")
+        .map(|l| l.split(",")
+            .map(|s| s.parse().unwrap())
+            .collect()
+        )
+        .map(|v| Update(v))
+        .collect();
+
+    return updates.iter_mut()
+        .filter(|u| orders.iter().any(|o| !u.is_ordered(o)))
+        .map(|u| {
+            loop {
+                orders.iter().for_each(|o| u.fix_order(o));
+                if orders.iter().all(|o| u.is_ordered(o)) {
+                    break;
+                }
+            }
+            return u;
+        })
+        .map(|u| u.middle_num())
+        .sum();
 }
 
