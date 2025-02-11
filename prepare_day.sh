@@ -46,11 +46,11 @@ fn test_p2() {
     }
 }
 
-fn part1(data: &String) -> usize {
+fn part1(data: &str) -> usize {
     todo!();
 }
 
-fn part2(data: &String) -> usize {
+fn part2(data: &str) -> usize {
     todo!();
 }
 
