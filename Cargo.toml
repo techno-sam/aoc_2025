@@ -11,6 +11,7 @@ char_enum_impl = {version="0.1.0", path="char_enum_impl"}
 utils = {version="0.1.0", path="utils"}
 vec3-rs = "0.1.5"
 rand = "0.8.5"
+regex = "1.11.1"
 
 [workspace]
 members = ["char_enum_impl", "utils"]

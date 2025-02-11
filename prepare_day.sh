@@ -12,6 +12,7 @@ mkdir -v src/bin/day$1 || exit_me
 cat -v <<EOF > src/bin/day$1/main.rs
 use std::fs;
 
+#[allow(dead_code)]
 fn example() -> String {
     return "
 
