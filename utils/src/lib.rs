@@ -11,6 +11,107 @@ pub fn highlight(input: &str, actually: bool, r: u8, g: u8, b: u8) -> String {
     return "\x1b[48;2;".to_owned()+&r.to_string()+";"+&g.to_string()+";"+&b.to_string()+"m"+input+"\x1b[0m";
 }
 
+const RESET: &str = "\x1b[0m";
+
+fn fg_string(c: Color) -> String {
+    return "\x1b[38;2;".to_owned() + &c.r.to_string() + ";" + &c.g.to_string() + ";" + &c.b.to_string() + "m";
+}
+
+fn bg_string(c: Color) -> String {
+    return "\x1b[48;2;".to_owned() + &c.r.to_string() + ";" + &c.g.to_string() + ";" + &c.b.to_string() + "m";
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub struct Color {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8
+}
+impl Color {
+    pub fn rgb(r: u8, g: u8, b: u8) -> Color {
+        Color { r, g, b }
+    }
+}
+
+#[derive(Default, Copy, Clone, PartialEq, Eq)]
+pub struct Style {
+    pub fg: Option<Color>,
+    pub bg: Option<Color>,
+}
+impl Style {
+    pub fn fg(c: Option<Color>) -> Style {
+        Style {
+            fg: c,
+            bg: None
+        }
+    }
+
+    pub fn bg(c: Option<Color>) -> Style {
+        Style {
+            fg: None,
+            bg: c
+        }
+    }
+
+    pub fn merge(&mut self, other: &Style) {
+        if let None = self.fg {
+            self.fg = other.fg;
+        }
+
+        if let None = self.bg {
+            self.bg = other.bg;
+        }
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub struct StyledChar {
+    pub chr: char,
+    pub style: Style
+}
+impl StyledChar {
+    pub fn of(chr: char) -> StyledChar {
+        StyledChar {
+            chr,
+            style: Style::default()
+        }
+    }
+}
+
+pub trait StyleUtil {
+    fn merge_style(&mut self, row: usize, column: usize, style: &Style);
+}
+
+impl StyleUtil for Vec<Vec<StyledChar>> {
+    fn merge_style(&mut self, row: usize, column: usize, style: &Style) {
+        self[row][column].style.merge(style);
+    }
+}
+
+pub fn print_grid(input: &Vec<Vec<StyledChar>>) {
+    for r in 0..input.len() {
+        let row = &input[r];
+        let mut last_style = Style::default();
+
+        for tile in row {
+            if tile.style != last_style {
+                last_style = tile.style;
+                print!("{}", RESET);
+
+                if let Some(c) = tile.style.fg {
+                    print!("{}", fg_string(c));
+                }
+
+                if let Some(c) = tile.style.bg {
+                    print!("{}", bg_string(c));
+                }
+            }
+            print!("{}", tile.chr);
+        }
+        print!("\n");
+    }
+}
+
 pub trait DijkstraNode<T> where Self: PartialEq + Eq + Hash + Copy {
     /// Returns a vector of (node, distance) pairs
     fn get_connected(&self, context: &T) -> Vec<(Self, usize)> where Self: Sized;
