@@ -17,7 +17,7 @@ fn example() -> String {
 ".trim().to_owned();
 }
 
-const PART2: bool = false;
+const PART2: bool = true;
 
 fn main() {
     println!("AOC 2024 Day 07");
@@ -39,23 +39,48 @@ fn test_p1() {
 }
 
 #[test]
+fn test_concat() {
+    assert_eq!(concat(1, 23), 123);
+    assert_eq!(concat(15, 6), 156);
+    assert_eq!(concat(72, 90), 7290);
+}
+
+#[test]
 fn test_p2() {
     if PART2 {
-        assert_eq!(part2(&example()), 42);
+        assert_eq!(part2(&example()), 11387);
     }
+}
+
+fn concat(a: usize, b: usize) -> usize {
+    let mut mul = 1;
+    while b >= mul {
+        mul *= 10;
+    }
+    (a * mul) + b
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[data_enum(fn(usize, usize) -> usize)]
 enum Operator {
     Add      = |a, b| a + b,
-    Multiply = |a, b| a * b
+    Multiply = |a, b| a * b,
+    Concat   = concat
 }
 impl Operator {
     fn next(self) -> Operator {
         match self {
             Operator::Add => Operator::Multiply,
-            Operator::Multiply => Operator::Add
+            Operator::Multiply => Operator::Add,
+            v => panic!("Invalid part 1 operator {:?}", v)
+        }
+    }
+
+    fn next_part2(self) -> Operator {
+        match self {
+            Operator::Add => Operator::Multiply,
+            Operator::Multiply => Operator::Concat,
+            Operator::Concat => Operator::Add
         }
     }
 }
@@ -91,7 +116,7 @@ impl PartialEquation {
         result == self.target
     }
 
-    fn can_be_valid(&self) -> bool {
+    fn can_be_valid(&self, part2: bool) -> bool {
         let mut ops: Vec<_> = std::iter::repeat_n(Operator::Add, self.inputs.len() - 1).collect();
 
         loop {
@@ -99,7 +124,7 @@ impl PartialEquation {
                 return true;
             }
             for i in (0..ops.len()).rev() {
-                let next = ops[i].next();
+                let next = if part2 { ops[i].next_part2() } else { ops[i].next() };
                 ops[i] = next;
                 if next != Operator::Add {
                     break;
@@ -115,10 +140,13 @@ fn part1(data: &str) -> usize {
     let eqs: Vec<PartialEquation> = data.split("\n").map(|s| s.into()).collect();
 
     eqs.iter()
-        .filter_map(|eq| if eq.can_be_valid() { Some(eq.target) } else { None }).sum()
+        .filter_map(|eq| if eq.can_be_valid(false) { Some(eq.target) } else { None }).sum()
 }
 
 fn part2(data: &str) -> usize {
-    todo!();
+    let eqs: Vec<PartialEquation> = data.split("\n").map(|s| s.into()).collect();
+
+    eqs.iter()
+        .filter_map(|eq| if eq.can_be_valid(true) { Some(eq.target) } else { None }).sum()
 }
 
