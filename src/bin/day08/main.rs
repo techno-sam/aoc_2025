@@ -34,7 +34,7 @@ fn example2() -> String {
 ".trim().to_owned();
 }
 
-const PART2: bool = false;
+const PART2: bool = true;
 
 fn main() {
     println!("AOC 2024 Day 08");
@@ -63,7 +63,7 @@ fn test_p1_b() {
 #[test]
 fn test_p2() {
     if PART2 {
-        assert_eq!(part2(&example()), 42);
+        assert_eq!(part2(&example()), 34);
     }
 }
 
@@ -187,6 +187,50 @@ impl Map {
 
         count
     }
+
+    fn node_count2(&self) -> usize {
+        let mut antinodes = make_grid(self.rows, self.cols, false);
+        let mut count = 0;
+
+        for coords in self.antennas.values() {
+            for i in 0..coords.len() {
+                for j in i+1..coords.len() {
+                    let a = coords[i];
+                    let b = coords[j];
+
+                    let a = a.map(|v| v as isize);
+                    let b = b.map(|v| v as isize);
+
+                    let delta = b - a;
+
+                    let mut add_and_test = |offset: isize| -> bool {
+                        let node = a + delta * offset;
+                        if node.a >= 0 && node.a < (self.rows as isize) && node.b >= 0 && node.b < (self.cols as isize) {
+                            let node = node.map(|v| v as usize);
+                            if !antinodes[node] {
+                                antinodes[node] = true;
+                                count += 1;
+                            }
+                            return true;
+                        }
+                        return false;
+                    };
+
+                    let mut ofs = 0;
+                    while add_and_test(ofs) {
+                        ofs -= 1;
+                    }
+
+                    ofs = 1;
+                    while add_and_test(ofs) {
+                        ofs += 1;
+                    }
+                }
+            }
+        }
+
+        count
+    }
 }
 
 fn part1(data: &str) -> usize {
@@ -197,6 +241,9 @@ fn part1(data: &str) -> usize {
 }
 
 fn part2(data: &str) -> usize {
-    todo!();
+    println!();
+    let grid: Vec<Vec<Tile>> = parse_grid(data);
+    let map = Map::of(grid);
+    map.node_count2()
 }
 
