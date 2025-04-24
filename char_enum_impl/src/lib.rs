@@ -88,6 +88,20 @@ pub fn char_enum(_input: TokenStream, annotated_item: TokenStream) -> TokenStrea
                         }
                     }
                 }
+
+                #[automatically_derived]
+                impl From<char> for #ident {
+                    fn from(c: char) -> #ident {
+                        #ident::decode(c)
+                    }
+                }
+
+                #[automatically_derived]
+                impl From<#ident> for char {
+                    fn from(v: #ident) -> char {
+                        #ident::encode(&v)
+                    }
+                }
             })
         },
         _ => panic!("char_enum can only be applied to enums")

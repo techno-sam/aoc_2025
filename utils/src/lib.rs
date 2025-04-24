@@ -1,4 +1,4 @@
-use std::{collections::{HashSet, HashMap}, hash::Hash};
+use std::{collections::{HashMap, HashSet}, hash::Hash, ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Sub, SubAssign}, slice::SliceIndex};
 
 pub fn colorize(input: &str, r: u8, g: u8, b: u8) -> String {
     return "\x1b[38;2;".to_owned()+&r.to_string()+";"+&g.to_string()+";"+&b.to_string()+"m"+input+"\x1b[0m";
@@ -28,8 +28,46 @@ pub struct Color {
     pub b: u8
 }
 impl Color {
-    pub fn rgb(r: u8, g: u8, b: u8) -> Color {
+    pub const WHITE: Color = Color::rgb(255, 255, 255);
+    pub const BLACK: Color = Color::rgb(0, 0, 0);
+
+    pub const fn rgb(r: u8, g: u8, b: u8) -> Color {
         Color { r, g, b }
+    }
+
+    pub fn hsl(h: f32, s: f32, l: f32) -> Color {
+        let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
+        let h_prime = h / 60.0;
+        let x = c * (1.0 - (h_prime % 2.0 - 1.0).abs());
+
+        let (r1, g1, b1) = match h_prime as u32 {
+            0 => (c, x, 0.0),
+            1 => (x, c, 0.0),
+            2 => (0.0, c, x),
+            3 => (0.0, x, c),
+            4 => (x, 0.0, c),
+            5 => (c, 0.0, x),
+            _ => (0.0, 0.0, 0.0),
+        };
+
+        let m = l - c / 2.0;
+
+        Color {
+            r: ((r1 + m) * 255.0).round() as u8,
+            g: ((g1 + m) * 255.0).round() as u8,
+            b: ((b1 + m) * 255.0).round() as u8,
+        }
+    }
+
+    pub fn random_from_seed(seed: usize) -> Color {
+        // multiply by a large prime to simulate randomness
+        let seed = seed.wrapping_mul(10722542609); 
+
+        let hue = (seed % 360) as f32;
+        let saturation = 0.9;
+        let lightness = 0.6;
+
+        Color::hsl(hue, saturation, lightness)
     }
 }
 
@@ -108,7 +146,146 @@ pub fn print_grid(input: &Vec<Vec<StyledChar>>) {
             }
             print!("{}", tile.chr);
         }
+
+        if let (None, None) = (last_style.fg, last_style.bg) {} else {
+            print!("{}", RESET);
+        }
+
         print!("\n");
+    }
+}
+
+pub fn parse_grid<T>(input: &str) -> Vec<Vec<T>> where T: From<char> {
+    input.trim()
+        .split("\n")
+        .map(|r| r.chars()
+            .map(|c| c.into())
+            .collect())
+        .collect()
+}
+
+pub fn make_grid<V>(rows: usize, cols: usize, v: V) -> Vec<Vec<V>> where V: Copy {
+    (0..rows).map(|_| (0..cols).map(|_| v).collect()).collect()
+}
+
+pub trait GridMap<T> {
+    fn grid_map<F, B>(&self, f: F) -> Vec<Vec<B>> where F: FnMut(&T) -> B;
+}
+
+impl<T> GridMap<T> for Vec<Vec<T>> {
+    fn grid_map<F, B>(&self, f: F) -> Vec<Vec<B>> where F: FnMut(&T) -> B {
+        let mut f = f;
+        self.iter().map(|r| r.iter().map(|v| f(v)).collect()).collect()
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct Point<T> {
+    pub a: T,
+    pub b: T
+}
+impl<T> Point<T> {
+    pub fn map<U>(self, mapper: fn(T) -> U) -> Point<U> {
+        Point {
+            a: mapper(self.a),
+            b: mapper(self.b)
+        }
+    }
+}
+impl<T> Add for Point<T> where T: Add<Output = T> {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Point {
+            a: Add::add(self.a, rhs.a),
+            b: Add::add(self.b, rhs.b)
+        }
+    }
+}
+impl<T> AddAssign for Point<T> where T: AddAssign {
+    fn add_assign(&mut self, rhs: Self) {
+        AddAssign::add_assign(&mut self.a, rhs.a);
+        AddAssign::add_assign(&mut self.b, rhs.b);
+    }
+}
+impl<T> Sub for Point<T> where T: Sub<Output = T> {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Point {
+            a: Sub::sub(self.a, rhs.a),
+            b: Sub::sub(self.b, rhs.b)
+        }
+    }
+}
+impl<T> SubAssign for Point<T> where T: SubAssign {
+    fn sub_assign(&mut self, rhs: Self) {
+        SubAssign::sub_assign(&mut self.a, rhs.a);
+        SubAssign::sub_assign(&mut self.b, rhs.b);
+    }
+}
+impl<T> Mul<T> for Point<T> where T: Mul<Output = T> + Copy {
+    type Output = Self;
+
+    fn mul(self, rhs: T) -> Self::Output {
+        Self {
+            a: Mul::mul(self.a, rhs),
+            b: Mul::mul(self.b, rhs)
+        }
+    }
+}
+impl<T> MulAssign<T> for Point<T> where T: MulAssign + Copy {
+    fn mul_assign(&mut self, rhs: T) {
+        MulAssign::mul_assign(&mut self.a, rhs);
+        MulAssign::mul_assign(&mut self.b, rhs);
+    }
+}
+impl<T> Div<T> for Point<T> where T: Div<Output = T> + Copy {
+    type Output = Self;
+
+    fn div(self, rhs: T) -> Self::Output {
+        Self {
+            a: Div::div(self.a, rhs),
+            b: Div::div(self.b, rhs)
+        }
+    }
+}
+impl<T> DivAssign<T> for Point<T> where T: DivAssign + Copy {
+    fn div_assign(&mut self, rhs: T) {
+        DivAssign::div_assign(&mut self.a, rhs);
+        DivAssign::div_assign(&mut self.b, rhs);
+    }
+}
+
+impl<T> From<(T, T)> for Point<T> {
+    fn from(value: (T, T)) -> Self {
+        Self {
+            a: value.0,
+            b: value.1
+        }
+    }
+}
+
+impl<T> From<Point<T>> for (T, T) {
+    fn from(value: Point<T>) -> Self {
+        (value.a, value.b)
+    }
+}
+
+impl<P, V> Index<Point<P>> for Vec<Vec<V>> where P: SliceIndex<[Vec<V>], Output = Vec<V>>, P: SliceIndex<[V], Output = V> {
+    type Output = V;
+
+    fn index(&self, index: Point<P>) -> &Self::Output {
+        &self[index.a][index.b]
+    }
+}
+
+impl<P, V> IndexMut<Point<P>> for Vec<Vec<V>> where
+    P: SliceIndex<[Vec<V>], Output = Vec<V>>,
+    P: SliceIndex<[V], Output = V>
+{
+    fn index_mut(&mut self, index: Point<P>) -> &mut Self::Output {
+        &mut self[index.a][index.b]
     }
 }
 
