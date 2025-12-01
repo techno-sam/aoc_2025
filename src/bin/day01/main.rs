@@ -3,7 +3,7 @@ use std::fs;
 use nom::multi::many0;
 use nom::{IResult, Parser};
 use nom::branch::alt;
-use nom::sequence::{preceded, terminated};
+use nom::sequence::{pair, preceded};
 use nom::character::complete::{self, char};
 
 #[allow(dead_code)]
@@ -22,7 +22,7 @@ L82
 ".trim().to_owned()
 }
 
-const PART2: bool = false;
+const PART2: bool = true;
 
 fn main() {
     println!("AOC 2025 Day 01");
@@ -45,7 +45,7 @@ fn test_p1() {
 #[test]
 fn test_p2() {
     if PART2 {
-        assert_eq!(part2(&example()), 42);
+        assert_eq!(part2(&example()), 6);
     }
 }
 
@@ -65,6 +65,53 @@ impl Lock {
             Movement::L(l) => self.pos = (self.pos + self.len - (l % self.len)) % self.len,
         }
     }
+
+    fn do_move2(&mut self, mov: &Movement) -> usize {
+        match mov {
+            Movement::R(r) => {
+                let pos0 = self.pos;
+                self.pos = (self.pos + r) % self.len;
+
+                // we might have done some # of full loops
+                // we might be at 0 now.
+                // if now!=0 we might have made a partial loop past 0 (pos < pos0)
+
+                let mut zeros = r / self.len;
+
+                if pos0 != 0 && self.pos == 0 {
+                    // don't double-count a full loop starting and ending at 0
+                    zeros += 1;
+                }
+
+                if self.pos < pos0 && pos0 != 0 && self.pos != 0 {
+                    zeros += 1;
+                }
+
+                zeros
+            },
+            Movement::L(l) => {
+                let pos0 = self.pos;
+                self.pos = (self.pos + self.len - (l % self.len)) % self.len;
+
+                // we might have done some # of full loops
+                // we might be at 0 now.
+                // if now!=0 we might have made a partial loop past 0 (pos < pos0)
+
+                let mut zeros = l / self.len;
+
+                if pos0 != 0 && self.pos == 0 {
+                    // don't double-count a full loop starting and ending at 0
+                    zeros += 1;
+                }
+
+                if self.pos > pos0 && pos0 != 0 && self.pos != 0 {
+                    zeros += 1;
+                }
+
+                zeros
+            }
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -81,13 +128,18 @@ impl Movement {
     }
 
     fn parse_list(input: &str) -> IResult<&str, Vec<Self>> {
-        many0(terminated(Self::parse, char('\n'))).parse(input)
+        pair(
+            Self::parse,
+            many0(preceded(char('\n'), Self::parse))
+        ).map(|(single, mut vec)| {vec.insert(0, single); vec})
+        .parse(input)
     }
 }
 
 fn part1(data: &str) -> usize {
     let mut lock = Lock::new();
-    let movements = Movement::parse_list(data).unwrap().1;
+    let (remainder, movements) = Movement::parse_list(data).unwrap();
+    assert_eq!(remainder.len(), 0, "Non-empty remainder '{}'", remainder);
 
     let mut zeros = 0;
     for movement in &movements {
@@ -101,6 +153,20 @@ fn part1(data: &str) -> usize {
 }
 
 fn part2(data: &str) -> usize {
-    todo!();
+    let mut lock = Lock::new();
+    let (remainder, movements) = Movement::parse_list(data).unwrap();
+    assert_eq!(remainder.len(), 0, "Non-empty remainder '{}'", remainder);
+
+    let mut zeros = 0;
+    for movement in &movements {
+        let inc = lock.do_move2(movement);
+        zeros += inc;
+
+        if cfg!(test) {
+            println!("{} zeros for {:?}, now at {}", inc, movement, lock.pos);
+        }
+    }
+
+    zeros
 }
 
