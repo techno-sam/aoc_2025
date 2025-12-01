@@ -22,7 +22,7 @@ fn example() -> String {
 const PART2: bool = false;
 
 fn main() {
-    println!("AOC 2024 Day $1");
+    println!("AOC 2025 Day $1");
 
     let contents = fs::read_to_string("src/bin/day$1/input.txt")
         .expect("Failed to read input");
