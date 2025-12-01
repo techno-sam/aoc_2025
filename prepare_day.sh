@@ -14,9 +14,9 @@ use std::fs;
 
 #[allow(dead_code)]
 fn example() -> String {
-    return "
+    "
 
-".trim().to_owned();
+".trim().to_owned()
 }
 
 const PART2: bool = false;
