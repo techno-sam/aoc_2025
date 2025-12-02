@@ -1,4 +1,4 @@
-use std::{fmt::Display, fs};
+use std::{collections::HashSet, fmt::Display, fs};
 
 use nom::{character::complete::{self, char}, multi::many0, sequence::{pair, preceded, separated_pair}, IResult, Parser};
 
@@ -11,7 +11,7 @@ fn example() -> String {
 ".replace("\n", "").trim().to_owned()
 }
 
-const PART2: bool = false;
+const PART2: bool = true;
 
 fn main() {
     println!("AOC 2025 Day 02");
@@ -40,8 +40,54 @@ fn testp1_a() {
 #[test]
 fn test_p2() {
     if PART2 {
-        assert_eq!(part2(&example()), 42);
+        assert_eq!(part2(&example()), 4174379265);
     }
+}
+
+#[test]
+fn test_invalidator() {
+    assert_eq!(Invalidator::new(1, 2).divisor(), 11);
+    assert_eq!(Invalidator::new(1, 3).divisor(), 111);
+
+    assert_eq!(Invalidator::new(2, 2).divisor(), 101);
+    assert_eq!(Invalidator::new(2, 3).divisor(), 10101);
+
+    assert_eq!(Invalidator::new(4, 2).divisor(), 10001);
+    assert_eq!(Invalidator::new(4, 3).divisor(), 100010001);
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Invalidator {
+    part_len: u32,
+    repeats: u32
+}
+impl Invalidator {
+    fn new(part_len: u32, repeats: u32) -> Self {
+        assert!(repeats >= 2, "invalidator must repeat");
+        Self { part_len, repeats }
+    }
+
+    fn divisor(&self) -> usize {
+        let mul = 10usize.pow(self.part_len);
+        let mut out = 1;
+
+        for _ in 1..self.repeats {
+            out *= mul;
+            out += 1;
+        }
+
+        out
+    }
+
+    fn max(&self) -> usize {
+        let mul = 10usize.pow(self.part_len);
+        self.divisor() * (mul - 1)
+    }
+
+    fn min(&self) -> usize {
+        self.divisor() * 10usize.pow(self.part_len - 1)
+    }
+
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -115,6 +161,51 @@ impl IdRange {
         }
         sum
     }
+
+    fn collect_part2(&self, inv: Invalidator, invalid: &mut HashSet<usize>) {
+        let min = self.min.max(inv.min());
+        let max = self.max.min(inv.max());
+        let divisor = inv.divisor();
+
+        if cfg!(test) {
+            print!("Multiples[[{} {}] {}]({} -> {}) for {}:", inv.part_len, inv.repeats, divisor, min, max, self)
+        }
+
+        let mut highest = max - max % divisor;
+        while highest >= min {
+            if cfg!(test) { print!(" {}", highest); }
+            invalid.insert(highest);
+            highest -= divisor;
+        }
+        if cfg!(test) { println!(); }
+    }
+
+    fn sum_part2(&self) -> usize {
+        if cfg!(test) { println!(); }
+
+        let mut invalid = HashSet::<usize>::new();
+        'Outer: for exp in 1.. {
+            for repeats in 2.. {
+                let inv = Invalidator::new(exp, repeats);
+
+                if inv.min() > self.max {
+                    if repeats == 2 {
+                        break 'Outer;
+                    } else {
+                        break;
+                    }
+                }
+
+                if inv.max() < self.min {
+                    continue;
+                }
+
+                self.collect_part2(inv, &mut invalid);
+            }
+        }
+
+        invalid.into_iter().sum()
+    }
 }
 impl Display for IdRange {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -133,6 +224,12 @@ fn part1(data: &str) -> usize {
 }
 
 fn part2(data: &str) -> usize {
-    todo!();
+    let ranges = {
+        let (remainder, ranges) = IdRange::parse_list(data).unwrap();
+        assert_eq!(remainder.len(), 0, "Non-empty remainder: '{}'", remainder);
+        ranges
+    };
+
+    ranges.iter().map(IdRange::sum_part2).sum()
 }
 
