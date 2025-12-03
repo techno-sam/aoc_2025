@@ -68,6 +68,7 @@ impl Invalidator {
     }
 
     fn divisor(&self) -> usize {
+        // a 1 for every repeat, separated by (part_len - 1) zeros
         let mul = 10usize.pow(self.part_len);
         let mut out = 1;
 
@@ -80,14 +81,19 @@ impl Invalidator {
     }
 
     fn max(&self) -> usize {
+        // example for part_len 3 and repeats 2:
+        // divisor = 1001
+        // maximum legal = 1001 * 999 = 999999
         let mul = 10usize.pow(self.part_len);
         self.divisor() * (mul - 1)
     }
 
     fn min(&self) -> usize {
+        // example for part_len 3 and repeats 2:
+        // divisor = 1001
+        // minimum legal = 1001 * 100 = 100100
         self.divisor() * 10usize.pow(self.part_len - 1)
     }
-
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -116,6 +122,8 @@ impl IdRange {
         ).map(|(first, mut vec)| { vec.insert(0, first); vec })
         .parse(input)
     }
+
+    /* PART 1 */
 
     fn real_max(&self, base: usize) -> usize {
         self.max.min(base * (base - 2))
@@ -149,6 +157,8 @@ impl IdRange {
     }
 
     fn sum_invalid(&self) -> usize {
+        if cfg!(test) { println!(); }
+
         let mut sum = 0;
         let mut exp = 1;
         loop {
@@ -161,6 +171,8 @@ impl IdRange {
         }
         sum
     }
+
+    /* PART 2 */
 
     fn collect_part2(&self, inv: Invalidator, invalid: &mut HashSet<usize>) {
         let min = self.min.max(inv.min());
@@ -185,19 +197,19 @@ impl IdRange {
 
         let mut invalid = HashSet::<usize>::new();
         'Outer: for exp in 1.. {
-            for repeats in 2.. {
+            'Inner: for repeats in 2.. {
                 let inv = Invalidator::new(exp, repeats);
 
                 if inv.min() > self.max {
                     if repeats == 2 {
                         break 'Outer;
                     } else {
-                        break;
+                        break 'Inner;
                     }
                 }
 
                 if inv.max() < self.min {
-                    continue;
+                    continue 'Inner;
                 }
 
                 self.collect_part2(inv, &mut invalid);
