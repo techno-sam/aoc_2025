@@ -10,7 +10,7 @@ fn example() -> String {
 ".trim().to_owned()
 }
 
-const PART2: bool = false;
+const PART2: bool = true;
 
 fn main() {
     println!("AOC 2025 Day 03");
@@ -34,7 +34,7 @@ fn test_p1() {
 #[test]
 fn test_p2() {
     if PART2 {
-        assert_eq!(part2(&example()), 42);
+        assert_eq!(part2(&example()), 3121910778619);
     }
 }
 
@@ -84,6 +84,26 @@ impl Bank {
 
         joltage
     }
+
+    fn max_joltage_2(&self) -> usize {
+        let mut out = 0;
+        let mut min_idx = 0;
+
+        for digit in (0..12).rev() {
+            let idx = self.highest_in_range(min_idx..self.batteries.len() - digit);
+            out *= 10;
+            out += self.batteries[idx] as usize;
+            min_idx = idx + 1;
+        }
+
+        if cfg!(test) {
+            print!("Max joltage for ");
+            self.batteries.iter().for_each(|v| print!("{}", v));
+            println!(": {}", out);
+        }
+
+        out
+    }
 }
 
 fn part1(data: &str) -> usize {
@@ -93,6 +113,8 @@ fn part1(data: &str) -> usize {
 }
 
 fn part2(data: &str) -> usize {
-    todo!();
+    let banks = Bank::parse_lines(data);
+
+    banks.iter().map(Bank::max_joltage_2).sum()
 }
 
