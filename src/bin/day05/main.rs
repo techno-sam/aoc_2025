@@ -1,4 +1,4 @@
-use std::{fs, ops::RangeInclusive};
+use std::fs;
 
 use nom::{character::complete, multi::separated_list1, sequence::separated_pair, IResult, Parser};
 use utils::parse_complete;
@@ -20,7 +20,7 @@ fn example() -> String {
 ".trim().to_owned()
 }
 
-const PART2: bool = false;
+const PART2: bool = true;
 
 fn main() {
     println!("AOC 2025 Day 05");
@@ -44,7 +44,7 @@ fn test_p1() {
 #[test]
 fn test_p2() {
     if PART2 {
-        assert_eq!(part2(&example()), 42);
+        assert_eq!(part2(&example()), 14);
     }
 }
 
@@ -64,6 +64,7 @@ impl FreshRange {
         self.min
     }
 
+    #[allow(dead_code)]
     fn max(&self) -> usize {
         self.max
     }
@@ -73,13 +74,15 @@ impl FreshRange {
     }
 
     fn merge(&self, other: &FreshRange) -> Option<FreshRange> {
-        if self.min > other.max {
-            None
-        } else if other.min > self.max {
+        if self.min > other.max || other.min > self.max {
             None
         } else {
             Some(FreshRange { min: self.min.min(other.min), max: self.max.max(other.max) })
         }
+    }
+
+    fn len(&self) -> usize {
+        self.max - self.min + 1
     }
 }
 
@@ -121,18 +124,24 @@ impl Kitchen {
         self.fresh.iter().any(|fr| fr.contains(ingredient))
     }
 
-    fn count_fresh(&self) -> usize {
+    fn count_fresh_and_available(&self) -> usize {
         self.available.iter().filter(|v| self.contains(**v)).count()
+    }
+
+    fn count_fresh(&self) -> usize {
+        self.fresh.iter().map(FreshRange::len).sum()
     }
 }
 
 fn part1(data: &str) -> usize {
     let mut kitchen = parse_complete(&mut Kitchen::parse, data);
     kitchen.unify_fresh();
-    kitchen.count_fresh()
+    kitchen.count_fresh_and_available()
 }
 
 fn part2(data: &str) -> usize {
-    todo!();
+    let mut kitchen = parse_complete(&mut Kitchen::parse, data);
+    kitchen.unify_fresh();
+    kitchen.count_fresh()
 }
 
