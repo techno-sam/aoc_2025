@@ -1,5 +1,13 @@
 use std::{collections::{HashMap, HashSet}, hash::Hash, ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Sub, SubAssign}, slice::SliceIndex};
 
+#[inline]
+#[must_use]
+pub fn parse_complete<'a, P, O>(parser: &mut P, input: &'a str) -> O where P: nom::Parser<&'a str, Output = O, Error: std::fmt::Debug> {
+    let (remainder, parsed) = parser.parse(input).expect("parsing failed");
+    assert_eq!(remainder.len(), 0, "Non-empty remainder: '{}'", remainder);
+    parsed
+}
+
 pub fn colorize(input: &str, r: u8, g: u8, b: u8) -> String {
     return "\x1b[38;2;".to_owned()+&r.to_string()+";"+&g.to_string()+";"+&b.to_string()+"m"+input+"\x1b[0m";
 }

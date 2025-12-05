@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 char_enum_impl = {version="0.1.0", path="../char_enum_impl"}
+nom = "8.0.0"
