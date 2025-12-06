@@ -1,5 +1,6 @@
-use std::fs;
+use std::{fs, ops::RangeInclusive};
 
+use bitvec::vec::BitVec;
 use char_enum_impl::{char_enum, data_enum};
 use nom::{character::complete, combinator::map_res, multi::separated_list1, sequence::{delimited, separated_pair}, IResult, Parser};
 use utils::parse_complete;
@@ -11,17 +12,17 @@ fn example() -> String {
  45 64  387 23 
   6 98  215 314
 *   +   *   +  
-".trim().to_owned()
+".trim_matches('\n').to_owned()
 }
 
-const PART2: bool = false;
+const PART2: bool = true;
 
 fn main() {
     println!("AOC 2025 Day 06");
 
     let contents = fs::read_to_string("src/bin/day06/input.txt")
         .expect("Failed to read input");
-    let contents = contents.trim();
+    let contents = contents.trim_matches('\n');
 
     println!("Part 1: {}", part1(contents));
 
@@ -51,6 +52,11 @@ fn parsing_ops() {
 }
 
 #[test]
+fn finding_columns() {
+    assert_eq!(find_columns("ab  123\ncde  45"), vec![0..=2, 4..=6])
+}
+
+#[test]
 fn test_p1() {
     assert_eq!(part1(&example()), 4277556);
 }
@@ -58,7 +64,7 @@ fn test_p1() {
 #[test]
 fn test_p2() {
     if PART2 {
-        assert_eq!(part2(&example()), 42);
+        assert_eq!(part2(&example()), 3263827);
     }
 }
 
@@ -114,6 +120,32 @@ impl InputData {
     }
 }
 
+fn find_columns(input: &str) -> Vec<RangeInclusive<usize>> {
+    let blanks = input.lines()
+        .filter(|l| !l.is_empty())
+        .map(|l| {
+            let bv: BitVec = l.chars().map(|c| c == ' ').collect();
+            bv
+        })
+        .reduce(|mut acc, elem| {
+            assert_eq!(acc.len(), elem.len());
+            acc &= elem;
+            acc
+        })
+        .unwrap();
+
+    let mut out: Vec<RangeInclusive<usize>> = vec![];
+
+    blanks.iter_zeros().for_each(|idx| {
+        match out.last_mut() {
+            Some(prev) if *prev.end() == idx - 1 => *prev = *prev.start()..=idx,
+            _ => out.push(idx..=idx),
+        }
+    });
+
+    out
+}
+
 #[derive(Clone, Debug)]
 struct HomeworkColumn {
     inputs: Vec<usize>,
@@ -128,6 +160,37 @@ impl HomeworkColumn {
         let op = self.op.value();
         self.inputs.iter().fold(op.identity, |a, b| (op.op)(a, *b))
     }
+
+    fn parse_columnwise(input: &str, column: RangeInclusive<usize>) -> Self {
+        let lines: Vec<_> = input.lines().collect();
+        let (&op, lines) = lines.split_last().unwrap();
+        let op = &op[column.clone()];
+        let (_, op) = Op::parse(op).unwrap();
+
+        let mut inputs = vec![];
+        for col in column {
+            let mut number = None;
+
+            for &line in lines {
+                let c = line.chars().nth(col).unwrap_or_else(|| panic!("line '{}', col: {}", line, col));
+                if c.is_ascii_whitespace() {
+                    continue;
+                }
+
+                let digit = c.to_digit(10).unwrap() as usize;
+                number = Some(match number {
+                    Some(number) => number * 10 + digit,
+                    None => digit,
+                });
+            }
+
+            if let Some(number) = number {
+                inputs.push(number);
+            }
+        }
+
+        Self { op, inputs }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -137,6 +200,15 @@ struct Homework {
 impl Homework {
     fn grand_total(&self) -> usize {
         self.columns.iter().map(HomeworkColumn::calculate).sum()
+    }
+
+    fn parse_columnwise(input: &str) -> Self {
+        let columns = find_columns(input);
+        let columns = columns.into_iter()
+            .map(|c| HomeworkColumn::parse_columnwise(input, c))
+            .collect();
+
+        Self { columns }
     }
 }
 
@@ -162,6 +234,7 @@ fn part1(data: &str) -> usize {
 }
 
 fn part2(data: &str) -> usize {
-    todo!();
+    let homework = Homework::parse_columnwise(data);
+    homework.grand_total()
 }
 

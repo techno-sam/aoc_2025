@@ -16,7 +16,7 @@ use std::fs;
 fn example() -> String {
     "
 
-".trim().to_owned()
+".trim_matches('\n').to_owned()
 }
 
 const PART2: bool = false;
@@ -26,7 +26,7 @@ fn main() {
 
     let contents = fs::read_to_string("src/bin/day$1/input.txt")
         .expect("Failed to read input");
-    let contents = contents.trim();
+    let contents = contents.trim_matches('\n');
 
     println!("Part 1: {}", part1(contents));
 
