@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput, Data, spanned::Spanned, Error, Expr, Lit, Type, Ident};
+use syn::{parse_macro_input, punctuated::Punctuated, spanned::Spanned, token::{Comma, Paren}, Data, DeriveInput, Error, Expr, ExprLit, ExprTuple, Ident, Lit, Type};
 
 // call as such: panic_span!(something.span(), "Error message"); in a function that returns
 // a TokenStream
@@ -32,11 +32,33 @@ pub fn char_enum(_input: TokenStream, annotated_item: TokenStream) -> TokenStrea
                 }
                 match variant.discriminant {
                     Some((_, expr)) => {
-                        if let Expr::Lit(literal) = expr {
+                        if let Expr::Lit(literal) = expr { // = 'A'
                             if let Lit::Char(chr) = literal.lit {
-                                data.push((variant.attrs, variant.ident, chr.token()));
+                                data.push((variant.attrs, variant.ident, chr.token(), None));
                             } else {
                                 panic_span!(literal.span(), "Expected character literal");
+                            }
+                        } else if let Expr::Tuple(tuple) = expr { // = ('A', ...)
+                            let tuple_span = tuple.span();
+                            let mut iter = tuple.elems.into_iter();
+                            let Some(first) = iter.next() else {
+                                panic_span!(tuple_span, "Expected element in tuple");
+                            };
+                            let remaining: Punctuated<Expr, Comma> = iter.collect();
+                            let remaining = if remaining.len() == 1 {
+                                remaining.into_iter().next().unwrap()
+                            } else {
+                                Expr::Tuple(ExprTuple {
+                                    attrs: tuple.attrs,
+                                    elems: remaining,
+                                    paren_token: Paren(tuple_span)
+                                })
+                            };
+
+                            if let Expr::Lit(ExprLit {lit: Lit::Char(chr), ..}) = first {
+                                data.push((variant.attrs, variant.ident, chr.token(), Some(remaining)));
+                            } else {
+                                panic_span!(first.span(), "Expected character literal")
                             }
                         } else {
                             panic_span!(expr.span(), "Expected character literal");
@@ -48,20 +70,30 @@ pub fn char_enum(_input: TokenStream, annotated_item: TokenStream) -> TokenStrea
 
             let top_level_attrs = item.attrs;
 
-            let identifiers = data.iter().map(|(attrs, id, _)| quote!{
-                #(
-                    #attrs
-                )*
-                #id,
+            let identifiers = data.iter().map(|(attrs, id, _, remaining)| match remaining {
+                Some(remaining) => quote! {
+                    #(
+                        #attrs
+                    )*
+                    #id = #remaining,
+                },
+                None => quote!{
+                    #(
+                        #attrs
+                    )*
+                    #id,
+                }
             });
-            let char_to_ident = data.iter().map(|(_, id, literal)| quote!{#literal => #ident::#id});
-            let ident_to_char = data.iter().map(|(_, id, literal)| quote!{#ident::#id => #literal});
+            let char_to_ident = data.iter().map(|(_, id, literal, _)| quote!{#literal => #ident::#id});
+            let char_to_ok_ident = data.iter().map(|(_, id, literal, _)| quote!{#literal => Ok(#ident::#id)});
+            let ident_to_char = data.iter().map(|(_, id, literal, _)| quote!{#ident::#id => #literal});
             let has_encode_decode = Ident::new(&(ident.to_string() + "__HasEncodeDecode__"), ident.span());
 
             TokenStream::from(quote!{
                 #(
                     #top_level_attrs
                 )*
+                #[derive(Clone, Copy, Debug, PartialEq, Eq)]
                 #vis enum #ident {
                     #( #identifiers )*
                 }
@@ -70,6 +102,7 @@ pub fn char_enum(_input: TokenStream, annotated_item: TokenStream) -> TokenStrea
                 #[allow(non_camel_case_types)]
                 #vis trait #has_encode_decode {
                     fn decode(chr: char) -> #ident;
+                    fn try_decode(chr: char) -> Result<#ident, char>;
                     fn encode(&self) -> char;
                 }
 
@@ -79,6 +112,13 @@ pub fn char_enum(_input: TokenStream, annotated_item: TokenStream) -> TokenStrea
                         match chr {
                             #( #char_to_ident, )*
                             _ => panic!("Unknown character `{}`", chr)
+                        }
+                    }
+
+                    fn try_decode(chr: char) -> Result<#ident, char> {
+                        match chr {
+                            #( #char_to_ok_ident, )*
+                            _ => Err(chr)
                         }
                     }
 

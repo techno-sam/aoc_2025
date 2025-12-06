@@ -46,7 +46,6 @@ fn test_p2() {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[char_enum]
 enum Tile {
     Paper = '@',
