@@ -164,12 +164,16 @@ pub fn print_grid(input: &Vec<Vec<StyledChar>>) {
 }
 
 pub fn parse_grid<T>(input: &str) -> Vec<Vec<T>> where T: From<char> {
-    input.trim()
+    let g: Vec<Vec<T>> = input.trim()
         .split("\n")
         .map(|r| r.chars()
             .map(|c| c.into())
             .collect())
-        .collect()
+        .collect();
+
+    assert_eq!(g.len() * g[0].len(), g.iter().map(|v| v.len()).sum(), "malformed grid");
+
+    g
 }
 
 pub fn make_grid<V>(rows: usize, cols: usize, v: V) -> Vec<Vec<V>> where V: Copy {
@@ -178,12 +182,16 @@ pub fn make_grid<V>(rows: usize, cols: usize, v: V) -> Vec<Vec<V>> where V: Copy
 
 pub trait GridMap<T> {
     fn grid_map<F, B>(&self, f: F) -> Vec<Vec<B>> where F: FnMut(&T) -> B;
+    fn row_map<F, B, R>(&self, f: F) -> Vec<R> where F: FnMut(&T) -> B, R: FromIterator<B>;
 }
 
 impl<T> GridMap<T> for Vec<Vec<T>> {
-    fn grid_map<F, B>(&self, f: F) -> Vec<Vec<B>> where F: FnMut(&T) -> B {
-        let mut f = f;
-        self.iter().map(|r| r.iter().map(|v| f(v)).collect()).collect()
+    fn grid_map<F, B>(&self, mut f: F) -> Vec<Vec<B>> where F: FnMut(&T) -> B {
+        self.iter().map(|r| r.iter().map(&mut f).collect()).collect()
+    }
+
+    fn row_map<F, B, R>(&self, mut f: F) -> Vec<R> where F: FnMut(&T) -> B, R: FromIterator<B> {
+        self.iter().map(|r| r.iter().map(&mut f).collect()).collect()
     }
 }
 
