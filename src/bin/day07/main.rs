@@ -26,7 +26,7 @@ fn example() -> String {
 ".trim_matches('\n').to_owned()
 }
 
-const PART2: bool = false;
+const PART2: bool = true;
 
 fn main() {
     println!("AOC 2025 Day 07");
@@ -50,7 +50,7 @@ fn test_p1() {
 #[test]
 fn test_p2() {
     if PART2 {
-        assert_eq!(part2(&example()), 42);
+        assert_eq!(part2(&example()), 40);
     }
 }
 
@@ -90,6 +90,34 @@ impl Manifold {
 
         count
     }
+
+    fn count_timelines(&self) -> usize {
+        let mut beams = self.grid[0].iter().map(|&tile| tile == Tile::Start).collect::<BitVec>();
+        let mut count = beams.iter().map(|v| if *v { 1 } else { 0 }).collect::<Vec<usize>>();
+        let cols = count.len();
+
+        for splitters in self.splitters.iter().skip(1) {
+            let split = beams.clone() & splitters;
+            beams ^= &split; // remove all split beams from the beam
+
+            beams |= &split[1..];
+            beams[1..] |= &split;
+
+            let mut new_count = count.iter().zip(split.iter()).map(|(&count, split)| if *split { 0 } else { count }).collect::<Vec<usize>>();
+            split.iter_ones().for_each(|idx| {
+                if idx > 0 {
+                    new_count[idx - 1] += count[idx];
+                }
+
+                if idx < cols - 1 {
+                    new_count[idx + 1] += count[idx];
+                }
+            });
+            count = new_count;
+        }
+
+        count.into_iter().sum()
+    }
 }
 
 fn part1(data: &str) -> usize {
@@ -98,6 +126,7 @@ fn part1(data: &str) -> usize {
 }
 
 fn part2(data: &str) -> usize {
-    todo!();
+    let manifold = Manifold::parse(data);
+    manifold.count_timelines()
 }
 
