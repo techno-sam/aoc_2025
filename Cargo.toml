@@ -6,14 +6,22 @@ edition = "2024"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 arr_macro = "0.2.1"
-memoize = "0.4.1"
+memoize = "0.5.1"
 char_enum_impl = {version="0.1.0", path="char_enum_impl"}
 utils = {version="0.1.0", path="utils"}
-vec3-rs = "0.1.5"
-rand = "0.8.5"
-regex = "1.11.1"
+vec3-rs = "0.1.6"
+rand = "0.9.2"
+regex = "1.12.2"
 nom = "8.0.0"
 bitvec = "1.0.1"
 
 [workspace]
-members = ["char_enum_impl", "utils"]
+members = ["char_enum_impl", "bench_macros", "utils"]
+
+[dev-dependencies]
+criterion = { version = "0.8.1", features = ["html_reports"] }
+bench_macros = {version="0.1.0", path="bench_macros"}
+
+[[bench]]
+name = "all_days"
+harness = false
