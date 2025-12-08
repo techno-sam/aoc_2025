@@ -29,7 +29,7 @@ fn example() -> String {
 ".trim_matches('\n').to_owned()
 }
 
-const PART2: bool = false;
+const PART2: bool = true;
 
 fn main() {
     println!("AOC 2025 Day 08");
@@ -53,7 +53,7 @@ fn test_p1() {
 #[test]
 fn test_p2() {
     if PART2 {
-        assert_eq!(part2(&example()), 42);
+        assert_eq!(part2(&example()), 25272);
     }
 }
 
@@ -153,10 +153,12 @@ impl Cave {
         }
     }
 
-    fn run_step(&mut self, step: usize) {
+    fn run_step(&mut self, step: usize) -> (usize, usize) {
         let candidate = &self.candidates[step];
         let a = candidate.id_a;
         let b = candidate.id_b;
+
+        let product = self.boxes[a].0.x * self.boxes[b].0.x;
 
         let net_a = self.boxes[a].1;
         let net_b = self.boxes[b].1;
@@ -188,7 +190,7 @@ impl Cave {
             }
             (Some(net_a), Some(net_b)) => {
                 if net_a == net_b {
-                    return;
+                    return (product, self.nets[net_a].len());
                 }
 
                 let (net_a, net_b) = {
@@ -220,6 +222,8 @@ impl Cave {
             self.print_net(combined_id);
             println!();
         }
+
+        (product, self.nets[combined_id].len())
     }
 
     fn connect_n(&mut self, n: usize) -> usize {
@@ -237,6 +241,21 @@ impl Cave {
         sizes.sort();
         sizes.into_iter().rev().take(3).product()
     }
+
+    fn connect_all(&mut self) -> usize {
+        let mut last_product = 0;
+
+        for i in 0..self.candidates.len() {
+            let net_size;
+            (last_product, net_size) = self.run_step(i);
+
+            if net_size == self.boxes.len() {
+                break;
+            }
+        }
+
+        last_product
+    }
 }
 
 fn part1_(data: &str, n: usize) -> usize {
@@ -250,6 +269,8 @@ fn part1(data: &str) -> usize {
 }
 
 fn part2(data: &str) -> usize {
-    todo!();
+    let mut cave = parse_complete(&mut Cave::parse, data);
+    cave.populate_distances();
+    cave.connect_all()
 }
 
