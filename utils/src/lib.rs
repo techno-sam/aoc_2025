@@ -1,5 +1,7 @@
 use std::{collections::{HashMap, HashSet}, hash::Hash, ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Sub, SubAssign}, slice::SliceIndex};
 
+use avl::AvlTreeSet;
+
 #[inline]
 #[must_use]
 pub fn parse_complete<'a, P, O>(parser: &mut P, input: &'a str) -> O where P: nom::Parser<&'a str, Output = O, Error: std::fmt::Debug> {
@@ -197,14 +199,14 @@ impl<T> GridMap<T> for Vec<Vec<T>> {
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Point<T> {
-    pub a: T,
-    pub b: T
+    pub x: T,
+    pub y: T
 }
 impl<T> Point<T> {
     pub fn map<U>(self, mapper: fn(T) -> U) -> Point<U> {
         Point {
-            a: mapper(self.a),
-            b: mapper(self.b)
+            x: mapper(self.x),
+            y: mapper(self.y)
         }
     }
 }
@@ -213,15 +215,15 @@ impl<T> Add for Point<T> where T: Add<Output = T> {
 
     fn add(self, rhs: Self) -> Self::Output {
         Point {
-            a: Add::add(self.a, rhs.a),
-            b: Add::add(self.b, rhs.b)
+            x: Add::add(self.x, rhs.x),
+            y: Add::add(self.y, rhs.y)
         }
     }
 }
 impl<T> AddAssign for Point<T> where T: AddAssign {
     fn add_assign(&mut self, rhs: Self) {
-        AddAssign::add_assign(&mut self.a, rhs.a);
-        AddAssign::add_assign(&mut self.b, rhs.b);
+        AddAssign::add_assign(&mut self.x, rhs.x);
+        AddAssign::add_assign(&mut self.y, rhs.y);
     }
 }
 impl<T> Sub for Point<T> where T: Sub<Output = T> {
@@ -229,15 +231,15 @@ impl<T> Sub for Point<T> where T: Sub<Output = T> {
 
     fn sub(self, rhs: Self) -> Self::Output {
         Point {
-            a: Sub::sub(self.a, rhs.a),
-            b: Sub::sub(self.b, rhs.b)
+            x: Sub::sub(self.x, rhs.x),
+            y: Sub::sub(self.y, rhs.y)
         }
     }
 }
 impl<T> SubAssign for Point<T> where T: SubAssign {
     fn sub_assign(&mut self, rhs: Self) {
-        SubAssign::sub_assign(&mut self.a, rhs.a);
-        SubAssign::sub_assign(&mut self.b, rhs.b);
+        SubAssign::sub_assign(&mut self.x, rhs.x);
+        SubAssign::sub_assign(&mut self.y, rhs.y);
     }
 }
 impl<T> Mul<T> for Point<T> where T: Mul<Output = T> + Copy {
@@ -245,15 +247,15 @@ impl<T> Mul<T> for Point<T> where T: Mul<Output = T> + Copy {
 
     fn mul(self, rhs: T) -> Self::Output {
         Self {
-            a: Mul::mul(self.a, rhs),
-            b: Mul::mul(self.b, rhs)
+            x: Mul::mul(self.x, rhs),
+            y: Mul::mul(self.y, rhs)
         }
     }
 }
 impl<T> MulAssign<T> for Point<T> where T: MulAssign + Copy {
     fn mul_assign(&mut self, rhs: T) {
-        MulAssign::mul_assign(&mut self.a, rhs);
-        MulAssign::mul_assign(&mut self.b, rhs);
+        MulAssign::mul_assign(&mut self.x, rhs);
+        MulAssign::mul_assign(&mut self.y, rhs);
     }
 }
 impl<T> Div<T> for Point<T> where T: Div<Output = T> + Copy {
@@ -261,30 +263,30 @@ impl<T> Div<T> for Point<T> where T: Div<Output = T> + Copy {
 
     fn div(self, rhs: T) -> Self::Output {
         Self {
-            a: Div::div(self.a, rhs),
-            b: Div::div(self.b, rhs)
+            x: Div::div(self.x, rhs),
+            y: Div::div(self.y, rhs)
         }
     }
 }
 impl<T> DivAssign<T> for Point<T> where T: DivAssign + Copy {
     fn div_assign(&mut self, rhs: T) {
-        DivAssign::div_assign(&mut self.a, rhs);
-        DivAssign::div_assign(&mut self.b, rhs);
+        DivAssign::div_assign(&mut self.x, rhs);
+        DivAssign::div_assign(&mut self.y, rhs);
     }
 }
 
 impl<T> From<(T, T)> for Point<T> {
     fn from(value: (T, T)) -> Self {
         Self {
-            a: value.0,
-            b: value.1
+            x: value.0,
+            y: value.1
         }
     }
 }
 
 impl<T> From<Point<T>> for (T, T) {
     fn from(value: Point<T>) -> Self {
-        (value.a, value.b)
+        (value.x, value.y)
     }
 }
 
@@ -292,7 +294,7 @@ impl<P, V> Index<Point<P>> for Vec<Vec<V>> where P: SliceIndex<[Vec<V>], Output 
     type Output = V;
 
     fn index(&self, index: Point<P>) -> &Self::Output {
-        &self[index.a][index.b]
+        &self[index.y][index.x]
     }
 }
 
@@ -301,7 +303,58 @@ impl<P, V> IndexMut<Point<P>> for Vec<Vec<V>> where
     P: SliceIndex<[V], Output = V>
 {
     fn index_mut(&mut self, index: Point<P>) -> &mut Self::Output {
-        &mut self[index.a][index.b]
+        &mut self[index.y][index.x]
+    }
+}
+
+#[derive(Debug)]
+pub struct Compactor<T> where T: std::cmp::Ord {
+    xs: AvlTreeSet<T>,
+    ys: AvlTreeSet<T>
+}
+impl<T> Default for Compactor<T> where T: std::cmp::Ord + num_traits::Num + AddAssign<T> + Copy  {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+impl<T> Compactor<T> where T: std::cmp::Ord + num_traits::Num + AddAssign<T> + Copy {
+    pub fn new() -> Self {
+        Self { xs: AvlTreeSet::new(), ys: AvlTreeSet::new() }
+    }
+
+    pub fn add_key_point(&mut self, pt: Point<T>) {
+        self.xs.insert(pt.x);
+        self.ys.insert(pt.y);
+    }
+
+    pub fn width(&self) -> usize {
+        self.xs.len()
+    }
+
+    pub fn height(&self) -> usize {
+        self.ys.len()
+    }
+
+    pub fn compact(&self, pt: Point<T>) -> Point<T> {
+        let mut x = T::zero();
+        for &key_x in &self.xs {
+            if key_x > pt.x {
+                break;
+            }
+
+            x += T::one();
+        }
+
+        let mut y = T::zero();
+        for &key_y in &self.ys {
+            if key_y > pt.y {
+                break;
+            }
+
+            y += T::one();
+        }
+
+        Point { x, y }
     }
 }
 

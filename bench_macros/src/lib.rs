@@ -50,6 +50,7 @@ fn setup_day_(input: TokenStream) -> Result<TokenStream, Error> {
     let main_rs = format!("src/bin/{}/main.rs", day);
     let main_rs = read_file(input.span(), &main_rs)?;
     let main_rs = main_rs.replace("cfg!(test)", "/*cfg!(test)*/ false");
+    let main_rs = main_rs.replace("/*[bench exclude]*/", "if false");
     let main_rs = syn::parse_str::<proc_macro2::TokenStream>(&main_rs)?;
 
     let input_txt = format!("src/bin/{}/input.txt", day);
@@ -101,6 +102,28 @@ fn setup_up_to_(input: TokenStream) -> Result<TokenStream, Error> {
     let input = syn::parse::<LitInt>(input)?;
     let max_day: usize = input.base10_parse()?;
     let days = (1..=max_day).collect::<Vec<_>>();
+    let bench_fns = days.iter().flat_map(|&day| (1..=2).map(move |part| format_ident!("bench_day{:0>2}_part{}", day, format!("{}", part))));
+
+    Ok(quote! {
+        #( bench_macros::setup_day!(#days); )*
+
+        criterion::criterion_group!(days, #(#bench_fns),*);
+    }.into())
+}
+
+#[proc_macro]
+pub fn setup_only(input: TokenStream) -> TokenStream {
+    match setup_only_(input) {
+        Ok(ts) => ts,
+        Err(e) => e.to_compile_error().into(),
+    }
+}
+
+#[inline]
+fn setup_only_(input: TokenStream) -> Result<TokenStream, Error> {
+    let input = syn::parse::<LitInt>(input)?;
+    let max_day: usize = input.base10_parse()?;
+    let days = (max_day..=max_day).collect::<Vec<_>>();
     let bench_fns = days.iter().flat_map(|&day| (1..=2).map(move |part| format_ident!("bench_day{:0>2}_part{}", day, format!("{}", part))));
 
     Ok(quote! {
