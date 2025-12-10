@@ -13,7 +13,7 @@ fn example() -> String {
 ".trim_matches('\n').to_owned()
 }
 
-const PART2: bool = false;
+const PART2: bool = true;
 
 fn main() {
     println!("AOC 2025 Day 10");
@@ -38,7 +38,7 @@ fn basic_parsing() {
             Button { affected_lights: vec![1, 3] },
             Button { affected_lights: vec![2] },
         ],
-        joltages: vec![3, 5, 4]
+        joltage_target: JoltageState { joltages: vec![3, 5, 4] }
     })));
 }
 
@@ -50,7 +50,7 @@ fn test_p1() {
 #[test]
 fn test_p2() {
     if PART2 {
-        assert_eq!(part2(&example()), 42);
+        assert_eq!(part2(&example()), 33);
     }
 }
 
@@ -119,24 +119,69 @@ impl Button {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+struct JoltageState {
+    joltages: Vec<usize>
+}
+impl JoltageState {
+    fn parse(input: &str) -> IResult<&str, Self> {
+        delimited(complete::char('{'), separated_list1(complete::char(','), complete::usize), complete::char('}'))
+            .map(|joltages| Self { joltages })
+            .parse(input)
+    }
+
+    fn new_blank(len: usize) -> Self {
+        Self { joltages: std::iter::repeat_n(0, len).collect() }
+    }
+
+    fn len(&self) -> usize {
+        self.joltages.len()
+    }
+
+    fn with(&self, button: &Button) -> Self {
+        let mut ret = self.clone();
+        ret.apply(button);
+        ret
+    }
+
+    fn apply(&mut self, button: &Button) {
+        for &idx in &button.affected_lights {
+            self.joltages[idx] += 1;
+        }
+    }
+
+    fn does_not_exceed(&self, other: &JoltageState) -> bool {
+        self.joltages.iter().zip(other.joltages.iter()).all(|(&this, &other)| this <= other)
+    }
+}
+impl DijkstraNode<&Machine> for JoltageState {
+    fn get_connected(&self, context: &&Machine) -> Vec<(Self, usize)> where Self: Sized {
+        context.buttons.iter().map(|b| (self.with(b), 1)).filter(|(js, _)| js.does_not_exceed(&context.joltage_target)).collect()
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Machine {
     light_target: LightState,
     buttons: Vec<Button>,
-    joltages: Vec<usize>,
+    joltage_target: JoltageState,
 }
 impl Machine {
     fn parse(input: &str) -> IResult<&str, Self> {
         let buttons = separated_list1(complete::char(' '), Button::parse);
-        let joltages = delimited(complete::char('{'), separated_list1(complete::char(','), complete::usize), complete::char('}'));
-        separated_pair(LightState::parse, complete::char(' '), separated_pair(buttons, complete::char(' '), joltages))
-            .map(|(light_target, (buttons, joltages))| Self { light_target, buttons, joltages })
+        separated_pair(LightState::parse, complete::char(' '), separated_pair(buttons, complete::char(' '), JoltageState::parse))
+            .map(|(light_target, (buttons, joltage_target))| Self { light_target, buttons, joltage_target })
             .parse(input)
     }
 
     fn min_presses(&self) -> usize {
         let d = DijkstraData::dijkstra(LightState::new_blank(self.light_target.len()), self, |s| s == &self.light_target);
         d.best_distance[&self.light_target]
+    }
+
+    fn min_joltage_presses(&self) -> usize {
+        let d = DijkstraData::dijkstra(JoltageState::new_blank(self.joltage_target.len()), self, |s| s == &self.joltage_target);
+        d.best_distance[&self.joltage_target]
     }
 }
 
@@ -153,6 +198,10 @@ impl Manual {
     fn min_presses(&self) -> usize {
         self.machines.iter().map(Machine::min_presses).sum()
     }
+
+    fn min_joltage_presses(&self) -> usize {
+        self.machines.iter().map(Machine::min_joltage_presses).sum()
+    }
 }
 
 fn part1(data: &str) -> usize {
@@ -161,6 +210,7 @@ fn part1(data: &str) -> usize {
 }
 
 fn part2(data: &str) -> usize {
-    todo!();
+    let manual = parse_complete(&mut Manual::parse, data);
+    manual.min_joltage_presses()
 }
 
