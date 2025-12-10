@@ -358,7 +358,7 @@ impl<T> Compactor<T> where T: std::cmp::Ord + num_traits::Num + AddAssign<T> + C
     }
 }
 
-pub trait DijkstraNode<T> where Self: PartialEq + Eq + Hash + Copy {
+pub trait DijkstraNode<T> where Self: PartialEq + Eq + Hash + Clone {
     /// Returns a vector of (node, distance) pairs
     fn get_connected(&self, context: &T) -> Vec<(Self, usize)> where Self: Sized;
 }
@@ -376,7 +376,7 @@ impl <Node, T>DijkstraData<Node, T> where Node: DijkstraNode<T> {
         let unvisited = HashSet::new();
         let visited = {
             let mut visited = HashSet::new();
-            visited.insert(initial);
+            visited.insert(initial.clone());
             visited
         };
         let best_distance = {
@@ -384,45 +384,47 @@ impl <Node, T>DijkstraData<Node, T> where Node: DijkstraNode<T> {
             best_distance.insert(initial, 0);
             best_distance
         };
-        return DijkstraData { unvisited, visited, best_distance, prev_in_chain: HashMap::new(), context };
+        DijkstraData { unvisited, visited, best_distance, prev_in_chain: HashMap::new(), context }
     }
 
-    fn get_best_unvisited(&self) -> Option<Node> {
-        if self.unvisited.len() == 0 {
+    fn get_best_unvisited(&self) -> Option<&Node> {
+        if self.unvisited.is_empty() {
             return None;
         }
-        let mut best: Option<Node> = None;
-        let mut best_distance = usize::max_value();
+        let mut best: Option<&Node> = None;
+        let mut best_distance = usize::MAX;
         for node in &self.unvisited {
             let dist = *self.best_distance.get(node).expect("Missing best distance for unvisited point");
             //.unwrap_or(&usize::max_value());
             if dist <= best_distance {
                 best_distance = dist;
-                best = Some(*node);
+                best = Some(node);
             }
         }
 
-        return best;
+        best
     }
 
 
     pub fn dijkstra(initial: Node, context: T, should_halt: impl Fn(&Node) -> bool) -> DijkstraData<Node, T> {
-        let mut data = DijkstraData::new(initial, context);
+        let mut data = DijkstraData::new(initial.clone(), context);
         let context = &data.context;
         for (other, distance) in initial.get_connected(context) {
-            data.best_distance.insert(other, distance);
-            data.prev_in_chain.insert(other, initial);
+            data.best_distance.insert(other.clone(), distance);
+            data.prev_in_chain.insert(other.clone(), initial.clone());
             data.unvisited.insert(other);
         }
 
         while let Some(cur) = data.get_best_unvisited() {
-            let dist_so_far = *data.best_distance.get(&cur).unwrap();
+            let dist_so_far = *data.best_distance.get(cur).unwrap();
+            let cur = cur.clone();
+
             for (other, dist) in cur.get_connected(context) {
                 if data.visited.contains(&other) {
                     continue;
                 }
 
-                data.unvisited.insert(other);
+                data.unvisited.insert(other.clone());
                 let new_dist = dist_so_far + dist;
                 let (better, best_dist) = match data.best_distance.get(&other) {
                     None => (true, new_dist),
@@ -435,18 +437,18 @@ impl <Node, T>DijkstraData<Node, T> where Node: DijkstraNode<T> {
                     }
                 };
                 if better {
-                    data.prev_in_chain.insert(other, cur);
+                    data.prev_in_chain.insert(other.clone(), cur.clone());
                 }
                 data.best_distance.insert(other, best_dist);
             }
             data.unvisited.remove(&cur);
-            data.visited.insert(cur);
+            data.visited.insert(cur.clone());
             if should_halt(&cur) {
                 return data;
             }
         }
 
-        return data;
+        data
     }
 }
 
