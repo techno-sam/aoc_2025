@@ -1,7 +1,7 @@
-use std::{collections::HashMap, fmt::Display, fs, ops::{Add, AddAssign, Index, IndexMut, Mul}};
+use std::{collections::HashMap, fmt::Display, fs, ops::{Add, AddAssign}};
 
 use nom::{character::complete, multi::separated_list1, sequence::separated_pair, IResult, Parser};
-use utils::{parse_complete, Point};
+use utils::parse_complete;
 
 // hint van Steef: Topological Sort
 
@@ -57,28 +57,6 @@ fn main() {
 }
 
 #[test]
-fn matmul() {
-    let mat = SquareMatrix {
-        data: vec![
-            1, 2,
-            3, 4
-        ].into_boxed_slice(),
-        n: 2
-    };
-
-    let out = SquareMatrix {
-        data: vec![
-             7, 10,
-            15, 22,
-        ].into_boxed_slice(),
-        n: 2
-    };
-
-    assert_eq!(mat, mat, "sanity");
-    assert_eq!(&mat * &mat, out);
-}
-
-#[test]
 fn test_p1() {
     assert_eq!(part1(&example()), 5);
 }
@@ -87,100 +65,6 @@ fn test_p1() {
 fn test_p2() {
     if PART2 {
         assert_eq!(part2(&example2()), 2);
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct SquareMatrix<N: num_traits::int::PrimInt> {
-    data: Box<[N]>,
-    n: usize,
-}
-impl<N> SquareMatrix<N> where N: num_traits::int::PrimInt {
-    fn new(n: usize) -> Self {
-        let data = std::iter::repeat_n(N::zero(), n*n).collect::<Vec<_>>().into_boxed_slice();
-        Self { data, n }
-    }
-
-    fn clear_diagonal(&mut self) {
-        for i in 0..self.n {
-            self.data[i * self.n + i] = N::zero();
-        }
-    }
-
-    fn get(&self, row: usize, col: usize) -> &N {
-        &self.data[row * self.n + col]
-    }
-
-    fn get_mut(&mut self, row: usize, col: usize) -> &mut N {
-        &mut self.data[row * self.n + col]
-    }
-
-    fn is_all_zero(&self) -> bool {
-        self.data.iter().all(|v| v.is_zero())
-    }
-}
-impl<N> Index<Point<usize>> for SquareMatrix<N> where N: num_traits::PrimInt {
-    type Output = N;
-
-    fn index(&self, index: Point<usize>) -> &Self::Output {
-        &self.data[index.y * self.n + index.x]
-    }
-}
-impl<N> IndexMut<Point<usize>> for SquareMatrix<N> where N: num_traits::PrimInt {
-    fn index_mut(&mut self, index: Point<usize>) -> &mut Self::Output {
-        &mut self.data[index.y * self.n + index.x]
-    }
-}
-impl<N> Display for SquareMatrix<N> where N: num_traits::PrimInt + Display {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.n == 0 {
-            return write!(f, "[]");
-        } else if self.n == 1 {
-            return write!(f, "[{}]", self.data[0]);
-        }
-
-        let mut offset = 0;
-        for row in 0..self.n {
-            write!(f, "|")?;
-            for col in 0..self.n {
-                let v = self.data[offset + col];
-
-                if row == Rack::YOU && col == Rack::OUT {
-                    write!(f, " {}", utils::colorize(&format!("{}", v), 180, 255, 180))?;
-                } else if v.is_zero() {
-                    write!(f, " {}", utils::colorize(&format!("{}", v), 100, 100, 100))?;
-                } else {
-                    write!(f, " {}", v)?;
-                }
-            }
-
-            writeln!(f, " |")?;
-            offset += self.n;
-        }
-
-        Ok(())
-    }
-}
-impl<N> Mul for &SquareMatrix<N> where N: num_traits::PrimInt + std::ops::AddAssign {
-    type Output = SquareMatrix<N>;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        assert_eq!(self.n, rhs.n, "cannot multiply differently-sized matrices");
-        let mut out = SquareMatrix::new(self.n);
-
-        for i in 0..self.n {
-            for j in 0..self.n {
-                let mut sum = N::zero();
-
-                for k in 0..self.n {
-                    sum += *self.get(i, k) * *rhs.get(k, j);
-                }
-
-                *out.get_mut(i, j) = sum;
-            }
-        }
-
-        out
     }
 }
 
@@ -199,90 +83,17 @@ impl Display for Label {
     }
 }
 
-struct Rack {
-    #[allow(unused)]
-    connections: Vec<(Label, Vec<Label>)>,
-    matrix0: SquareMatrix<i128>,
-    matrix: SquareMatrix<i128>,
-    total_count: usize,
-}
-impl Rack {
-    const YOU: usize = 0;
-    const OUT: usize = 1;
-
-    fn parse_connection(input: &str) -> IResult<&str, (Label, Vec<Label>)> {
-        separated_pair(Label::parse, nom::bytes::tag(": "), separated_list1(complete::char(' '), Label::parse)).parse(input)
-    }
-
-    fn parse(input: &str) -> IResult<&str, Self> {
-        let (remainder, connections) = separated_list1(complete::line_ending, Self::parse_connection).parse(input)?;
-        let mut matrix = SquareMatrix::new(connections.len() + 1);
-
-        let mut index_map = HashMap::new();
-        index_map.insert(Label::parse("you").unwrap().1, Self::YOU);
-        index_map.insert(Label::parse("out").unwrap().1, Self::OUT);
-
-        for (lbl, _) in &connections {
-            let len = index_map.len();
-            index_map.entry(*lbl).or_insert(len);
-        }
-
-        for (from, connected) in &connections {
-            let from_idx = *index_map.get(from).unwrap();
-            for to in connected {
-                let to_idx = *index_map.get(to).unwrap();
-                *matrix.get_mut(from_idx, to_idx) = 1;
-            }
-        }
-
-        let matrix0 = matrix.clone();
-        Ok((remainder, Self { connections, matrix0, matrix, total_count: 0 }))
-    }
-
-    fn step(&mut self) -> bool {
-        self.matrix = &self.matrix * &self.matrix0;
-        // we don't allow revisiting a node, so clear paths from a node to itself in any number of steps
-        self.matrix.clear_diagonal();
-        self.total_count += *self.matrix.get(Self::YOU, Self::OUT) as usize;
-        self.matrix.is_all_zero()
-    }
-}
-
-fn part1(data: &str) -> usize {
-    let mut rack = parse_complete(&mut Rack::parse, data);
-
-    /*[bench exclude]*/ {
-        println!("Original[{}x{}]:\n{}\n\n", rack.matrix0.n, rack.matrix0.n, rack.matrix0);
-    }
-
-    for i in 1usize.. {
-        let all_zero = rack.step();
-
-        /*[bench exclude]*/ {
-            if cfg!(test) || i % 10 == 0 {
-                println!("Step {}:\n{}\n", i, rack.matrix);
-            } else {
-                println!("Step {}", i);
-            }
-        }
-
-        if all_zero {
-            if cfg!(test) {
-                println!("All zero!");
-            }
-            break;
-        }
-    }
-
-    rack.total_count
-}
-
 #[derive(Clone, Copy, Debug, Default)]
 struct PathCounter {
     through_both: usize,
     through_fft: usize,
     through_dac: usize,
     through_neither: usize
+}
+impl PathCounter {
+    fn total(self) -> usize {
+        self.through_both + self.through_fft + self.through_dac + self.through_neither
+    }
 }
 impl Add for PathCounter {
     type Output = PathCounter;
@@ -331,15 +142,25 @@ impl Node {
 struct TopoRack {
     nodes: HashMap<Label, Node>,
     heights: Vec<(Label, usize)>,
+    root: Label,
 }
 impl TopoRack {
+    const YOU: Label = Label(['y', 'o', 'u']);
     const SVR: Label = Label(['s', 'v', 'r']);
     const OUT: Label = Label(['o', 'u', 't']);
     const DAC: Label = Label(['d', 'a', 'c']);
     const FFT: Label = Label(['f', 'f', 't']);
 
-    fn parse(input: &str) -> IResult<&str, Self> {
-        let (remainder, connections) = separated_list1(complete::line_ending, Rack::parse_connection).parse(input)?;
+    fn parse_connection(input: &str) -> IResult<&str, (Label, Vec<Label>)> {
+        separated_pair(Label::parse, nom::bytes::tag(": "), separated_list1(complete::char(' '), Label::parse)).parse(input)
+    }
+
+    fn parser<'a>(root: Label) -> impl Parser<&'a str, Output = Self, Error: nom::error::ParseError<&'a str> + std::fmt::Debug> {
+        move |input: &'a str| Self::parse(input, root)
+    }
+
+    fn parse(input: &str, root: Label) -> IResult<&str, Self> {
+        let (remainder, connections) = separated_list1(complete::line_ending, Self::parse_connection).parse(input)?;
         let mut nodes: HashMap<Label, Node> = connections.into_iter()
             .map(|(key, labels)| (key, Node::new(labels)))
             .collect();
@@ -360,12 +181,12 @@ impl TopoRack {
                 height
             }
         }
-        calculate_height(Self::SVR, &nodes, &mut heights);
+        calculate_height(root, &nodes, &mut heights);
 
         let mut heights: Vec<(Label, usize)> = heights.into_iter().collect();
         heights.sort_unstable_by_key(|(_, height)| *height);
 
-        Ok((remainder, Self { nodes, heights }))
+        Ok((remainder, Self { nodes, heights, root }))
     }
 
     fn print_heights(&self) {
@@ -374,7 +195,7 @@ impl TopoRack {
         }
     }
 
-    fn count(&mut self) -> usize {
+    fn count(&mut self) -> PathCounter {
         for (lbl, _) in &self.heights {
             let mut total = PathCounter::default();
 
@@ -404,15 +225,23 @@ impl TopoRack {
             self.nodes.get_mut(lbl).unwrap().counts += total;
         }
 
-        self.nodes.get(&Self::SVR).unwrap().counts.through_both
+        self.nodes.get(&self.root).unwrap().counts
     }
 }
 
-fn part2(data: &str) -> usize {
-    let mut rack = parse_complete(&mut TopoRack::parse, data);
+fn part1(data: &str) -> usize {
+    let mut rack = parse_complete(&mut TopoRack::parser(TopoRack::YOU), data);
     if cfg!(test) {
         rack.print_heights();
     }
-    rack.count()
+    rack.count().total()
+}
+
+fn part2(data: &str) -> usize {
+    let mut rack = parse_complete(&mut TopoRack::parser(TopoRack::SVR), data);
+    if cfg!(test) {
+        rack.print_heights();
+    }
+    rack.count().through_both
 }
 
