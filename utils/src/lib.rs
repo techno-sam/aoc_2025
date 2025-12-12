@@ -21,13 +21,13 @@ pub fn highlight(input: &str, actually: bool, r: u8, g: u8, b: u8) -> String {
     return "\x1b[48;2;".to_owned()+&r.to_string()+";"+&g.to_string()+";"+&b.to_string()+"m"+input+"\x1b[0m";
 }
 
-const RESET: &str = "\x1b[0m";
+pub const RESET: &str = "\x1b[0m";
 
-fn fg_string(c: Color) -> String {
+pub fn fg_string(c: Color) -> String {
     return "\x1b[38;2;".to_owned() + &c.r.to_string() + ";" + &c.g.to_string() + ";" + &c.b.to_string() + "m";
 }
 
-fn bg_string(c: Color) -> String {
+pub fn bg_string(c: Color) -> String {
     return "\x1b[48;2;".to_owned() + &c.r.to_string() + ";" + &c.g.to_string() + ";" + &c.b.to_string() + "m";
 }
 
@@ -78,6 +78,11 @@ impl Color {
         let lightness = 0.6;
 
         Color::hsl(hue, saturation, lightness)
+    }
+}
+impl From<(u8, u8, u8)> for Color {
+    fn from((r, g, b): (u8, u8, u8)) -> Self {
+        Self::rgb(r, g, b)
     }
 }
 
